@@ -1,0 +1,84 @@
+version: "3.7"
+
+services:
+  mysql:
+    image: mysql:5
+    container_name: mysql
+    restart: always
+    platform: linux/amd64
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: test
+      MYSQL_USER: kim
+      MYSQL_PASSWORD: test1234
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-proot_password",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  elasticsearch:
+    image: elasticsearch:7.16.1
+    container_name: elasticsearch
+    restart: always
+    environment:
+      - node.name=elasticsearch
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - discovery.type=single-node
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "9200:9200"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    mem_limit: 1g
+
+  logstash:
+    image: logstash:7.16.1
+    container_name: logstash
+    restart: always
+    volumes:
+      - ./mysql-connector-java-8.0.26.jar:/usr/share/logstash/mysql-connector-java-8.0.26.jar
+      - ./logstash:/usr/share/logstash/pipeline
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      mysql:
+        condition: service_healthy
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    command: ["logstash", "-f", "/usr/share/logstash/pipeline/logstash.conf"]
+
+  kibana:
+    image: kibana:7.16.1
+    container_name: kibana
+    restart: always
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
