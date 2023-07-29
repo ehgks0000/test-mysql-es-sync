@@ -13,16 +13,7 @@ services:
       MYSQL_PASSWORD: test1234
     healthcheck:
       test:
-        [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
-          "-proot_password",
-        ]
+        ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p1234"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -69,7 +60,6 @@ services:
         condition: service_healthy
     environment:
       LS_JAVA_OPTS: "-Xmx256m -Xms256m"
-    command: ["logstash", "-f", "/usr/share/logstash/pipeline/logstash.conf"]
 
   kibana:
     image: kibana:7.16.1
